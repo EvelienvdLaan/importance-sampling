@@ -71,7 +71,7 @@ The computer vision preprocessing pipeline includes the following major steps:
 For full details, refer to Section [X.X] of the paper.
 
 ### Preprocessing Summary - Text Data 
-- Predict sentiment labels
+- Predict labels
 - Extract model-internal representations
 
 ## Running Experiments 
