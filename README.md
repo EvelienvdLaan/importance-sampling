@@ -67,7 +67,7 @@ The computer vision preprocessing pipeline includes the following major steps:
     - MiVOLO
 - Save model-internal features from both models
 - Compute general identity embeddings using ArcFace
-- Store all processed samples in processed_cv_data.csv
+
 For full details, refer to Section [X.X] of the paper.
 
 ### Preprocessing Summary - Text Data 
