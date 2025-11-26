@@ -3,7 +3,7 @@
 This repository contains the code used to run the experiments for the paper **"[Paper Title]"**.  
 It provides all scripts needed to reproduce the numerical results, including data preprocessing, experiment execution, and evaluation.
 
-The goal of this repository is to make all analyses **transparent, reproducible, and easy to run**.
+The goal of this repository is to make all analyses transparent, reproducible, and easy to run.
 
 ---
 
@@ -11,9 +11,9 @@ The goal of this repository is to make all analyses **transparent, reproducible,
 
 This codebase provides:
 
-- Implementation of the **importance sampling** approach described in the paper  
-- Scripts to **run all experiments**  
-- Examples of preprocessing pipelines for **text** datasets  
+- Implementation of the importance sampling approach described in the paper  
+- Scripts to run all experiments 
+- Examples of preprocessing pipelines for text datasets  
 - Instructions for reproducing the figures and tables in the paper  
 
 ---
@@ -23,7 +23,7 @@ This codebase provides:
 Clone the repository:
 
 ```bash
-git clone https://github.com/<your-username>/importance-sampling.git
+git clone https://github.com/EvelienvdLaan/importance-sampling.git
 cd importance-sampling
 ```
 
