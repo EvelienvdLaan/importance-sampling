@@ -56,23 +56,12 @@ The full preprocessing pipeline—especially for the computer vision datasets—
 We provide a high-level description below; detailed technical explanations can be found in Section [X.X] of the paper.
 
 ### Preprocessing Summary - Computer Vision Data 
-The computer vision preprocessing pipeline includes the following major steps:
-- Add explicit quality features using OFIQ
-- Detect and crop faces using SCRFD
-- Estimate head rotations via SixDRepNet360
-- Extract skin color features with SkinColorFromAlbedo
-- Add contrast metrics using FaceContrastStatistics
-- Estimate age and gender with:
-    - RetinafaceGenderAgeModel
-    - MiVOLO
-- Save model-internal features from both models
-- Compute general identity embeddings using ArcFace
+The computer vision preprocessing pipeline includes face detection and cropping, image quality and contrast assessment, head pose estimation, skin color estimation, age and gender prediction, and identity embedding extraction. These explicit features are complemented by model-internal representations extracted from the final hidden layer of the models used in the experiments.
 
-For full details, refer to Section [X.X] of the paper.
+A detailed explanation of the explicit and model-internal features can be found in **Section 3.2.1** and **Section 3.2.2**of the paper.
 
 ### Preprocessing Summary - Text Data 
-- Predict labels
-- Extract model-internal representations
+For the text datasets, we apply a lighter preprocessing pipeline that focuses on extracting task-relevant representations. We generate predicted labels and extract model-internal representations from the final hidden layer of the language model.
 
 ## Running Experiments 
 To reproduce the experiments from the paper: 
