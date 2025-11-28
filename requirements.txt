@@ -11,3 +11,4 @@ numpy
 seaborn 
 matplotlib
 umap-learn
+sentence_transformers
