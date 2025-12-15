@@ -65,7 +65,7 @@ def generate_data(
         X[i, :] = np.random.normal(loc=mu, scale=sigma)
 
     # Compute logits and probabilities for Y
-    logits_Y = intercept + X @ beta_1 + A * beta_2 + np.random.normal(0, 1.5, size=n)
+    logits_Y = intercept + X @ beta_1 + A * beta_2 
     P_Y = expit(logits_Y)
     Y = np.random.binomial(1, P_Y)
 

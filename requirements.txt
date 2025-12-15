@@ -5,7 +5,6 @@ transformers
 dask
 pyarrow
 fastparquet
-fasttext
 scikit-learn 
 numpy
 seaborn 

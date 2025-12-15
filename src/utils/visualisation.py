@@ -235,10 +235,12 @@ def plot_pca_joint_kde(df_source, df_target, df_sample, ignore_cols=None):
 
     return g
 
-def plot_two_panel_barplot(results_dict):
+
+def plot_two_panel_barplot(results_dict, metrics=("precision", "recall"), show_values=False):
     """
-    Create a 2-panel grouped barplot (precision | recall)
-    with perfectly aligned bars per experiment.
+    Create grouped barplots (precision / recall / etc.)
+    If one metric is given -> single panel.
+    If two -> two-panel layout.
 
     Parameters
     ----------
@@ -246,6 +248,12 @@ def plot_two_panel_barplot(results_dict):
         Keys = experiment names (str)
         Values = pandas DataFrames with columns:
             ["set", "metric", "mean", "lower", "upper"]
+
+    metrics : tuple of str (default=("precision", "recall"))
+        Which metrics to plot. E.g. ("precision",), ("recall",), ("precision","recall")
+
+    show_values : bool, optional
+        If True, show mean values above bars.
 
     Returns
     -------
@@ -267,32 +275,29 @@ def plot_two_panel_barplot(results_dict):
     df_plot["set"] = pd.Categorical(df_plot["set"], categories=sets, ordered=True)
 
     experiments = list(results_dict.keys())
-
-    x = np.arange(len(experiments))  # base positions
-    width = 0.18                  # bar width
-    offsets = np.linspace(-0.27, 0.27, len(sets))  # 4 evenly spaced bars
+    x = np.arange(len(experiments))
+    width = 0.18
+    offsets = np.linspace(-0.27, 0.27, len(sets))
 
     colors = sns.color_palette("Set1", len(sets))
     set_colors = dict(zip(sets, colors))
 
     def plot_panel(ax, metric):
-
         dfm = df_plot[df_plot["metric"] == metric]
 
         for i, s in enumerate(sets):
             sub = dfm[dfm["set"] == s]
             xpos = x + offsets[i]
 
-            ax.bar(
+            bars = ax.bar(
                 xpos,
                 sub["mean"],
                 width=width,
                 color=set_colors[s],
-                label=s if metric == "precision" else "",
+                label=s if metric == metrics[0] else "",
                 edgecolor="black"
             )
 
-            # Add CI error bars
             ax.errorbar(
                 xpos,
                 sub["mean"],
@@ -303,22 +308,132 @@ def plot_two_panel_barplot(results_dict):
                 capsize=3
             )
 
+            if show_values:
+                for rect, val in zip(bars, sub["mean"]):
+                    height = rect.get_height()
+                    ax.annotate(
+                        f"{val:.2f}",
+                        xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xytext=(0, 4),
+                        textcoords="offset points",
+                        ha="center",
+                        va="bottom",
+                        fontsize=9
+                    )
+
         ax.set_xticks(x)
         ax.set_xticklabels(experiments, rotation=25, ha='right')
         ax.set_ylim(0, 1)
         ax.set_ylabel(metric.capitalize())
-        ax.set_title(f"{metric.capitalize()}")
+        ax.set_title(metric.capitalize())
         sns.despine(ax=ax)
 
-    fig, axs = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
+    # Dynamic panels
+    n_panels = len(metrics)
+    fig, axs = plt.subplots(1, n_panels, figsize=(8*n_panels, 6), sharey=True)
 
-    plot_panel(axs[0], "precision")
-    plot_panel(axs[1], "recall")
+    # If 1 metric → make axs iterable
+    if n_panels == 1:
+        axs = [axs]
+
+    for ax, metric in zip(axs, metrics):
+        plot_panel(ax, metric)
 
     handles, labels = axs[0].get_legend_handles_labels()
-    fig.legend(handles, labels, title="Set", bbox_to_anchor=(1.03, 0.95), loc="upper left")
+    fig.legend(handles, labels, title="Set",
+               bbox_to_anchor=(1.02, 0.95), loc="upper left")
 
-    fig.suptitle("Precision and Recall by experiment", fontsize=14, fontweight="bold")
+    title = " | ".join(m.capitalize() for m in metrics)
+    fig.suptitle(f"{title} by experiment", fontsize=14, fontweight="bold")
     plt.tight_layout()
 
     return fig
+
+
+def plot_demographic_metrics(
+    df_source,
+    df_target,
+    df_sample,
+    age_col="age_gt",
+    gender_col="gender_gt",
+    ethnicity_col="ethnicity_gt",
+):
+    """
+    Plot demographic comparison metrics for source, target, and sample datasets.
+
+    Parameters
+    ----------
+    df_source, df_target, df_sample : pandas.DataFrame
+        DataFrames containing demographic information.
+    age_col : str
+        Column name for age.
+    gender_col : str
+        Column name for gender (assumed numeric / probability).
+    ethnicity_col : str
+        Column name for ethnicity (categorical, e.g. 'Black', 'White').
+    """
+
+    labels = ["Source", "Target", "Sample"]
+
+    metrics = {
+        "Mean Age": [
+            df_source[age_col].mean(),
+            df_target[age_col].mean(),
+            df_sample[age_col].mean(),
+        ],
+        "P(Gender)": [
+            df_source[gender_col].mean(),
+            df_target[gender_col].mean(),
+            df_sample[gender_col].mean(),
+        ],
+        "P(Black)": [
+            (df_source[ethnicity_col] == "Black").mean(),
+            (df_target[ethnicity_col] == "Black").mean(),
+            (df_sample[ethnicity_col] == "Black").mean(),
+        ],
+        "Mean Age (Black)": [
+            df_source.loc[df_source[ethnicity_col] == "Black", age_col].mean(),
+            df_target.loc[df_target[ethnicity_col] == "Black", age_col].mean(),
+            df_sample.loc[df_sample[ethnicity_col] == "Black", age_col].mean(),
+        ],
+        "Mean Age (White)": [
+            df_source.loc[df_source[ethnicity_col] == "White", age_col].mean(),
+            df_target.loc[df_target[ethnicity_col] == "White", age_col].mean(),
+            df_sample.loc[df_sample[ethnicity_col] == "White", age_col].mean(),
+        ],
+    }
+
+    fig, axes = plt.subplots(1, len(metrics), figsize=(20, 4))
+
+    for ax, (metric, values) in zip(axes, metrics.items()):
+        bars = ax.bar(
+            labels,
+            values,
+            color="skyblue",
+            edgecolor="black",
+            linewidth=1,
+        )
+
+        ax.set_title(metric, fontsize=10, fontweight="bold")
+        ax.tick_params(axis="x", labelrotation=35)
+        for label in ax.get_xticklabels():
+            label.set_ha("right")
+        ax.grid(axis="y", linestyle="--", alpha=0.6)
+
+        max_val = max(values) if max(values) > 0 else 1
+
+        for bar, v in zip(bars, values):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                v + (max_val * 0.02),
+                f"{v:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+
+        ax.set_ylim(0, max_val * 1.15)
+
+    plt.tight_layout()
+    plt.show()
+
