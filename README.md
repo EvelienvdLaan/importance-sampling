@@ -53,13 +53,12 @@ python src/preprocessing/preprocess_sentiment.py
 
 Note:
 The full preprocessing pipeline—especially for the computer vision datasets—consists of many steps and model calls.
-We provide a high-level description below; detailed technical explanations can be found in Section [X.X] of the paper.
+We provide a high-level description below.
 
 ### Preprocessing Summary - Computer Vision Data 
 The computer vision preprocessing pipeline includes face detection and cropping, image quality and contrast assessment, head pose estimation, skin color estimation, age and gender prediction, and identity embedding extraction. These explicit features are complemented by model-internal representations extracted from the final hidden layer of the models used in the experiments.
 
 A detailed explanation of the explicit and model-internal features can be found in **Section 3.2.1** and **Section 3.2.2**of the paper.
-[info toevoegen over predictie modellen en gebruikte datasets - dit staat in de experimenten sectie van het paper]
 
 ### Preprocessing Summary - Text Data 
 For the text datasets, we apply a lighter preprocessing pipeline that focuses on extracting task-relevant representations. We generate predicted labels and extract model-internal representations from the final hidden layer of the language model.

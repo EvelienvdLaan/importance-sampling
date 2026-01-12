@@ -236,29 +236,50 @@ def plot_pca_joint_kde(df_source, df_target, df_sample, ignore_cols=None):
     return g
 
 
-def plot_two_panel_barplot(results_dict, metrics=("precision", "recall"), show_values=False):
+def plot_two_panel_barplot(
+    results_dict,
+    metrics=("precision", "recall"),
+    show_values=False,
+    panel_by="metric",  # "metric" or "experiment"
+):
     """
-    Create grouped barplots (precision / recall / etc.)
-    If one metric is given -> single panel.
-    If two -> two-panel layout.
+    Create grouped barplots for evaluation metrics (e.g. precision, recall).
+
+    Panels can represent either metrics (default) or experiments, controlled
+    by the `panel_by` argument. Bars within each panel represent different
+    data sets with error bars.
 
     Parameters
     ----------
     results_dict : dict
-        Keys = experiment names (str)
+        Keys = experiment names (str).
         Values = pandas DataFrames with columns:
-            ["set", "metric", "mean", "lower", "upper"]
+            ["set", "metric", "mean", "lower", "upper"].
 
-    metrics : tuple of str (default=("precision", "recall"))
-        Which metrics to plot. E.g. ("precision",), ("recall",), ("precision","recall")
+    metrics : tuple of str, default=("precision", "recall")
+        Metrics to plot. One metric gives a single panel; multiple metrics
+        give multiple panels (when panel_by="metric").
 
     show_values : bool, optional
-        If True, show mean values above bars.
+        If True, show mean values above the bars.
+
+    panel_by : {"metric", "experiment"}, default="metric"
+        Whether panels correspond to metrics or experiments.
 
     Returns
     -------
-    A matplotlib figure object.
+    fig : matplotlib.figure.Figure
+        The matplotlib figure object.
     """
+
+    FONT_SIZES = {
+        "title": 28,
+        "axis_label": 24,
+        "tick": 24,
+        "legend": 24,
+        "legend_title": 24,
+        "value": 24,
+    }
 
     dfs = []
     for experiment_name, df in results_dict.items():
@@ -268,25 +289,48 @@ def plot_two_panel_barplot(results_dict, metrics=("precision", "recall"), show_v
 
     df_plot = pd.concat(dfs, ignore_index=True)
 
-    df_plot["err_low"]  = df_plot["mean"] - df_plot["lower"]
+    df_plot["err_low"] = df_plot["mean"] - df_plot["lower"]
     df_plot["err_high"] = df_plot["upper"] - df_plot["mean"]
 
     sets = ["Source", "Target", "Sample", "Weighted"]
     df_plot["set"] = pd.Categorical(df_plot["set"], categories=sets, ordered=True)
 
     experiments = list(results_dict.keys())
-    x = np.arange(len(experiments))
-    width = 0.18
-    offsets = np.linspace(-0.27, 0.27, len(sets))
-
     colors = sns.color_palette("Set1", len(sets))
     set_colors = dict(zip(sets, colors))
 
-    def plot_panel(ax, metric):
-        dfm = df_plot[df_plot["metric"] == metric]
+    if panel_by == "metric":
+        panels = metrics
+        n_panels = len(metrics)
+    elif panel_by == "experiment":
+        panels = experiments
+        n_panels = len(experiments)
+    else:
+        raise ValueError("panel_by must be 'metric' or 'experiment'")
 
-        for i, s in enumerate(sets):
-            sub = dfm[dfm["set"] == s]
+    fig, axs = plt.subplots(1, n_panels, figsize=(8 * n_panels, 6), sharey=True)
+    if n_panels == 1:
+        axs = [axs]
+
+    for ax, panel in zip(axs, panels):
+
+        if panel_by == "metric":
+            df_panel = df_plot[df_plot["metric"] == panel]
+            x_labels = experiments
+            x = np.arange(len(experiments))
+            group_items = sets
+
+        else:  # panel_by == "experiment"
+            df_panel = df_plot[df_plot["experiment"] == panel]
+            x_labels = metrics
+            x = np.arange(len(metrics))
+            group_items = sets
+
+        width = 0.18
+        offsets = np.linspace(-0.27, 0.27, len(group_items))
+
+        for i, s in enumerate(group_items):
+            sub = df_panel[df_panel["set"] == s]
             xpos = x + offsets[i]
 
             bars = ax.bar(
@@ -294,59 +338,67 @@ def plot_two_panel_barplot(results_dict, metrics=("precision", "recall"), show_v
                 sub["mean"],
                 width=width,
                 color=set_colors[s],
-                label=s if metric == metrics[0] else "",
-                edgecolor="black"
+                label=s if ax == axs[0] else "",
+                edgecolor="black",
             )
 
             ax.errorbar(
                 xpos,
                 sub["mean"],
                 yerr=[sub["err_low"], sub["err_high"]],
-                fmt='none',
-                ecolor='black',
+                fmt="none",
+                ecolor="black",
                 elinewidth=1,
-                capsize=3
+                capsize=3,
             )
 
             if show_values:
                 for rect, val in zip(bars, sub["mean"]):
-                    height = rect.get_height()
                     ax.annotate(
                         f"{val:.2f}",
-                        xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xy=(rect.get_x() + rect.get_width() / 2, rect.get_height()),
                         xytext=(0, 4),
                         textcoords="offset points",
                         ha="center",
                         va="bottom",
-                        fontsize=9
+                        fontsize=FONT_SIZES["value"],
                     )
 
         ax.set_xticks(x)
-        ax.set_xticklabels(experiments, rotation=25, ha='right')
+        ax.set_xticklabels(
+            [lbl.capitalize() for lbl in x_labels],
+            rotation=25,
+            ha="right",
+            fontsize=FONT_SIZES["tick"],
+        )
+
         ax.set_ylim(0, 1)
-        ax.set_ylabel(metric.capitalize())
-        ax.set_title(metric.capitalize())
+        ax.tick_params(axis="y", labelsize=FONT_SIZES["tick"])
+
+        title = panel.capitalize() if panel_by == "metric" else f"Experiment {panel}"
+        ax.set_title(title, fontsize=FONT_SIZES["title"])
+        ax.set_ylabel("Score", fontsize=FONT_SIZES["axis_label"])
+
         sns.despine(ax=ax)
 
-    # Dynamic panels
-    n_panels = len(metrics)
-    fig, axs = plt.subplots(1, n_panels, figsize=(8*n_panels, 6), sharey=True)
-
-    # If 1 metric → make axs iterable
-    if n_panels == 1:
-        axs = [axs]
-
-    for ax, metric in zip(axs, metrics):
-        plot_panel(ax, metric)
-
     handles, labels = axs[0].get_legend_handles_labels()
-    fig.legend(handles, labels, title="Set",
-               bbox_to_anchor=(1.02, 0.95), loc="upper left")
+    fig.legend(
+        handles,
+        labels,
+        title="Set",
+        bbox_to_anchor=(1.02, 0.95),
+        loc="upper left",
+        fontsize=FONT_SIZES["legend"],
+        title_fontsize=FONT_SIZES["legend_title"],
+    )
 
-    title = " | ".join(m.capitalize() for m in metrics)
-    fig.suptitle(f"{title} by experiment", fontsize=14, fontweight="bold")
+    fig.suptitle(
+        "Results by " + ("Metric" if panel_by == "metric" else "Experiment"),
+        fontsize=FONT_SIZES["title"] + 2,
+        fontweight="bold",
+    )
+
     plt.tight_layout()
-
     return fig
 
 
@@ -437,3 +489,66 @@ def plot_demographic_metrics(
     plt.tight_layout()
     plt.show()
 
+
+def plot_mae_bars(df, metric="MAE", title=None, save_path=None, padding_ratio=0.1, bar_width = 0.8):
+    """
+    Plot bar chart with confidence intervals for a given metric.
+
+    Args:
+        df: DataFrame with columns ['set', 'metric', 'mean', 'lower', 'upper'].
+        metric: Which metric to plot (e.g. 'precision', 'recall', or 'MAE').
+        title: Optional title.
+        save_path: Optional path to save figure.
+        padding_ratio: Extra space added above/below the data range (as fraction of range).
+    """
+    data = df[df["metric"] == metric].copy()
+    if data.empty:
+        raise ValueError(f"No data found for metric '{metric}'")
+
+    # Compute error bars
+    data["err_low"] = data["mean"] - data["lower"]
+    data["err_high"] = data["upper"] - data["mean"]
+
+    # Compute range dynamically
+    y_min = float(data["lower"].min())
+    y_max = float(data["upper"].max())
+
+    # If all values >= 0, start from 0; otherwise, extend below min
+    if y_min >= 0:
+        y_min = 0
+    y_range = y_max - y_min
+    padding = y_range * padding_ratio if y_range > 0 else 0.05 * max(abs(y_max), 1)
+    ylim = (y_min - padding if y_min < 0 else y_min, y_max + padding)
+
+    # Plot
+    plt.figure(figsize=(8, 4))
+    bars = plt.bar(
+        data["set"],
+        data["mean"],
+        yerr=[data["err_low"], data["err_high"]],
+        capsize=6,
+        width=bar_width, 
+        color="skyblue",
+        edgecolor="black",
+    )
+
+    plt.ylim(ylim)
+    plt.title(title or metric)
+    plt.ylabel(metric)
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Add values above bars
+    offset = y_range * 0.02 if y_range > 0 else 0.02
+    for bar, mean in zip(bars, data["mean"]):
+        plt.text(
+            bar.get_x() + bar.get_width() / 2,
+            mean + offset if mean >= 0 else mean - offset,
+            f"{mean:.2f}" if y_max < 2 else f"{mean:.2f}",
+            ha="center",
+            va="bottom" if mean >= 0 else "top",
+        )
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
