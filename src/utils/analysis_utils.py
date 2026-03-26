@@ -357,7 +357,7 @@ def summarize_all_delta_mae(datasets, group_col, group_a, group_b,
     return pd.DataFrame(summary)
 
 
-def prepare_embeddings(df, embedding_col="cls_embedding", use_pca=True, n_components=5):
+def prepare_embeddings(df, embedding_col="cls_embedding", use_pca=True, n_components=0.9):
     """
     Convert embedding column to separate columns, with optional PCA reduction.
 
@@ -387,11 +387,26 @@ def prepare_embeddings(df, embedding_col="cls_embedding", use_pca=True, n_compon
     if use_pca:
         from sklearn.decomposition import PCA
 
-        print(f"Applying PCA to reduce from {emb_matrix.shape[1]} to {n_components} dimensions...")
+        if isinstance(n_components, float) and 0 < n_components < 1:
+            print(
+                f"Applying PCA to retain {n_components:.0%} variance "
+                f"(from {emb_matrix.shape[1]} original dimensions)..."
+            )
+        else:
+            print(
+                f"Applying PCA to reduce from {emb_matrix.shape[1]} "
+                f"to {n_components} dimensions..."
+            )
+
         pca = PCA(n_components=n_components, random_state=42)
         emb_matrix = pca.fit_transform(emb_matrix)
+
         col_prefix = "pca_"
-        print(f"Total variance explained by {n_components} components: {pca.explained_variance_ratio_.sum():.2%}")
+
+        print(
+            f"Actual components used: {pca.n_components_} | "
+            f"Total variance explained: {pca.explained_variance_ratio_.sum():.2%}"
+        )
     else:
         print(f"Using full embedding of size {emb_matrix.shape[1]}...")
         col_prefix = "embedding_"
@@ -402,4 +417,3 @@ def prepare_embeddings(df, embedding_col="cls_embedding", use_pca=True, n_compon
     # Merge with other columns
     df = pd.concat([df, embedding_df], axis=1)
     return df
-
