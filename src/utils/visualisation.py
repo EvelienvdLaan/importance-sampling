@@ -4,6 +4,7 @@
 # line plots for the simulations 
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import seaborn as sns
 import numpy as np
 import pandas as pd 
@@ -11,7 +12,14 @@ import umap.umap_ as umap
 from sklearn.decomposition import PCA
 
 
-def plot_metric_bars(df, metric="precision", title=None, save_path=None, padding_ratio=0.1):
+def plot_metric_bars(
+    df,
+    metric="precision",
+    title=None,
+    save_path=None,
+    padding_ratio=0.1,
+    decimals=2,  
+):
     """
     Plot bar chart with confidence intervals for a given metric.
 
@@ -20,28 +28,26 @@ def plot_metric_bars(df, metric="precision", title=None, save_path=None, padding
         metric: Which metric to plot (e.g. 'precision', 'recall', or 'MAE').
         title: Optional title.
         save_path: Optional path to save figure.
-        padding_ratio: Extra space added above/below the data range (as fraction of range).
+        padding_ratio: Extra space added above/below the data range.
+        decimals: Number of decimal places for labels and axis.
     """
     data = df[df["metric"] == metric].copy()
     if data.empty:
         raise ValueError(f"No data found for metric '{metric}'")
 
-    # Compute error bars
     data["err_low"] = data["mean"] - data["lower"]
     data["err_high"] = data["upper"] - data["mean"]
 
-    # Compute range dynamically
     y_min = float(data["lower"].min())
     y_max = float(data["upper"].max())
 
-    # If all values >= 0, start from 0; otherwise, extend below min
     if y_min >= 0:
         y_min = 0
+
     y_range = y_max - y_min
     padding = y_range * padding_ratio if y_range > 0 else 0.05 * max(abs(y_max), 1)
     ylim = (y_min - padding if y_min < 0 else y_min, y_max + padding)
 
-    # Plot
     plt.figure(figsize=(6, 5))
     bars = plt.bar(
         data["set"],
@@ -57,22 +63,29 @@ def plot_metric_bars(df, metric="precision", title=None, save_path=None, padding
     plt.ylabel(metric.capitalize())
     plt.grid(axis="y", linestyle="--", alpha=0.7)
 
-    # Add values above bars
+    # Format y-axis to match decimals
+    plt.gca().yaxis.set_major_formatter(
+        FormatStrFormatter(f"%.{decimals}f")
+    )
+
     offset = y_range * 0.02 if y_range > 0 else 0.02
+    x_offset = 0.08
+
     for bar, mean in zip(bars, data["mean"]):
         plt.text(
-            bar.get_x() + bar.get_width() / 2,
+            bar.get_x() + bar.get_width() / 2 + x_offset,
             mean + offset if mean >= 0 else mean - offset,
-            f"{mean:.2f}" if y_max < 2 else f"{mean:.2f}",
-            ha="center",
+            f"{mean:.{decimals}f}",  # <-- dynamic rounding
+            ha="left",
             va="bottom" if mean >= 0 else "top",
         )
 
     plt.tight_layout()
+
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    plt.show()
 
+    plt.show()
 
 def plot_metric_differences(
     results_plot,
@@ -223,25 +236,24 @@ def plot_pca_joint_kde(df_source, df_target, df_sample, ignore_cols=None, front_
     fulldata = pd.concat([df_s, df_t, df_p], axis=0)
 
     # Slightly bigger text
-    sns.set_context("notebook", font_scale= front_scale)
-
-    # Plot KDE jointplot
-    g = sns.jointplot(
-        data=fulldata,
-        x="pca_0",
-        y="pca_1",
-        hue="method",
-        kind="kde",
-        joint_kws={"common_norm": False, "levels": 5, "linewidths": 1},
-        marginal_kws={"common_norm": False},
-    )
+    with sns.plotting_context("notebook", font_scale= front_scale):
+        # Plot KDE jointplot
+        g = sns.jointplot(
+            data=fulldata,
+            x="pca_0",
+            y="pca_1",
+            hue="method",
+            kind="kde",
+            joint_kws={"common_norm": False, "levels": 5, "linewidths": 1},
+            marginal_kws={"common_norm": False},
+        )
     
-    # Move legend to bottom-left
-    if g.ax_joint.legend_ and legend_loc != "upper right":
-        g.ax_joint.legend_.set_bbox_to_anchor((0, 0))  # bottom-left corner
-        g.ax_joint.legend_._loc = 3  # 3 = 'lower left'
-        
-    return g
+        # Move legend to bottom-left
+        if g.ax_joint.legend_ and legend_loc != "upper right":
+            g.ax_joint.legend_.set_bbox_to_anchor((0, 0))  # bottom-left corner
+            g.ax_joint.legend_._loc = 3  # 3 = 'lower left'
+            
+        return g
 
 
 def plot_two_panel_barplot(
@@ -547,10 +559,10 @@ def plot_mae_bars(df, metric="MAE", title=None, save_path=None, padding_ratio=0.
 
     # Add values above bars
     offset = y_range * 0.02 if y_range > 0 else 0.02
-    for bar, mean in zip(bars, data["mean"]):
+    for bar, mean, upper in zip(bars, data["mean"], data["upper"]):
         plt.text(
             bar.get_x() + bar.get_width() / 2,
-            mean + offset if mean >= 0 else mean - offset,
+            upper + offset if mean >= 0 else mean - offset,
             f"{mean:.2f}" if y_max < 2 else f"{mean:.2f}",
             ha="center",
             va="bottom" if mean >= 0 else "top",
